@@ -31,7 +31,7 @@ web:
       version: skip-login        # 免登录，不跳蓝鲸统一登录
     site:
       authScheme: internal       # 不用蓝鲸 iam
-      domainUrl: http://127.0.0.1:32083   # TODO: 改成实际访问地址（NodeIP:32083），前端跳转依赖此值
+      domainUrl: http://21.43.68.181:32083   # TODO: 改成实际访问地址（NodeIP:32083），前端跳转依赖此值
 
 ## ============ 4. ZooKeeper 服务发现：指向 backend 的 ZK（web chart 无内置 zk，此值必填）============
 configAndServiceCenter:
@@ -42,8 +42,8 @@ configAndServiceCenter:
 redis:
   enabled: false
   redis:
-    host: cmdb-redis-master.default.svc.cluster.local   # <backend-release>-redis-master.<ns>
-    pwd: "CmdbTest@Redis123"                            # 与 backend values-standalone.yaml 一致
+    host: cmdb-redis-master.cmdb.svc.cluster.local   # <backend-release>-redis-master.<ns>
+    pwd: "<path:roblox-grp/data/cmdb#password>"                       # 与 backend values-standalone.yaml 一致（注入后）
 
 mongodb:
   enabled: false
