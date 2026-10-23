@@ -1,0 +1,55 @@
+## bk-cmdb web 独立部署（测试环境）override —— 用法:
+##   先装好 backend，再执行: helm install cmdb-web . -f values-standalone.yaml [-n <namespace>]
+## 假设 backend release 名为 cmdb（redis/mongo 复用 backend 实例，不再单独拉一套）
+
+global:
+  storageClass: ""
+
+## ============ 1. 关键：webserver 镜像 tag 断档修复 ============
+## 默认渲染 v3.14.8-beta1，但 hub.bktencent.com 上 cmdb_webserver 最新只有 v3.12.4
+## 注意: 模板会自动加 v 前缀，这里只写 3.12.4（写 v3.12.4 会变成 vv3.12.4）
+webserver:
+  image:
+    tag: "3.12.4"
+
+  ## ============ 2. 访问方式：NodePort ============
+  ingress:
+    enabled: false
+  service:
+    type: NodePort
+    ports:
+      - name: http
+        protocol: TCP
+        port: 80
+        targetPort: 80
+        nodePort: 32083
+
+## ============ 3. 登录：默认已是 skip-login（显式声明）============
+web:
+  webServer:
+    login:
+      version: skip-login        # 免登录，不跳蓝鲸统一登录
+    site:
+      authScheme: internal       # 不用蓝鲸 iam
+      domainUrl: http://127.0.0.1:32083   # TODO: 改成实际访问地址（NodeIP:32083），前端跳转依赖此值
+
+## ============ 4. ZooKeeper 服务发现：指向 backend 的 ZK（web chart 无内置 zk，此值必填）============
+configAndServiceCenter:
+  addr: cmdb-zookeeper.cmdb.svc.cluster.local:2181   # <backend-release>-zookeeper.<ns>:2181
+
+## ============ 5. 复用 backend 的中间件（session 存 redis，必须可达）============
+## 不复用的话 web chart 会自己再拉一套 redis + mongodb，浪费资源
+redis:
+  enabled: false
+  redis:
+    host: cmdb-redis-master.default.svc.cluster.local   # <backend-release>-redis-master.<ns>
+    pwd: "CmdbTest@Redis123"                            # 与 backend values-standalone.yaml 一致
+
+mongodb:
+  enabled: false
+  externalMongodb:
+    enabled: true
+    usr: cc
+    pwd: "<path:roblox-grp/data/cmdb#password>"                            # 与 backend 一致
+    host: cmdb-mongodb-0.cmdb-mongodb-headless.cmdb.svc.cluster.local:27017
+    database: cmdb

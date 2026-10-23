@@ -1,0 +1,59 @@
+## bk-cmdb 独立部署（测试环境）override —— 用法:
+##   helm install cmdb . -f values-standalone.yaml [-n <namespace>]
+## 前置: helm dependency update（拉取 bitnami 子 chart，需外网）
+
+global:
+  ## TODO: 集群没有默认 StorageClass 时必填（内置 mongo/redis/zk 都要建 PVC，否则 Pending）
+  storageClass: ""
+
+## ============ 1. 蓝鲸 IAM：默认已关闭，显式声明 ============
+iam:
+  auth:
+    enabled: false
+  job:
+    enabled: false
+
+## ============ 2. authserver 依赖蓝鲸权限中心，独立部署关闭（否则 CrashLoopBackOff）============
+authserver:
+  enabled: false
+
+## ============ 3. 内置中间件密码（模板 required，不设 helm install 直接报错）============
+redis:
+  enabled: true                       # 测试环境用内置
+  auth:
+    password: "<path:roblox-grp/data/cmdb#password>"
+
+mongodb:
+  enabled: true
+  auth:
+    username: cc
+    password: "<path:roblox-grp/data/cmdb#password>"
+    database: cmdb
+  ## 部署在 cmdb namespace，headless svc 的 FQDN 带上 namespace
+  ## （渲染结果: cmdb-mongodb-0.cmdb-mongodb-headless.cmdb.svc.cluster.local）
+  host: mongodb-headless.cmdb.svc.cluster.local
+
+zookeeper:
+  enabled: true
+
+## ============ 4. 访问方式：关 Ingress 改 NodePort（无 ingress-controller 场景）============
+apiserver:
+  ingress:
+    enabled: false
+  service:
+    type: NodePort
+    ports:
+      - name: http
+        protocol: TCP
+        port: 80
+        targetPort: 80
+        nodePort: 32080
+
+## ============ 以下保持默认即可（显式列出避免困惑）============
+# bkPaasUrl / bkComponentApiUrl / bkLoginApiUrl 等蓝鲸地址：iam 关闭 + skip-login 后不会被
+#   实际调用，保留占位符不影响启动，无需配置
+# migrate.enabled: true        # 必须保留，初始化数据库
+# migrate.migrateDataId: false # 默认 false，不注册 GSE dataid
+# monstache / elasticsearch:   # 默认关闭（全文检索不用）
+# apigatewaySync / bkLogConfig / serviceMonitor / openTelemetry: 默认全关
+# cloudserver: 保留（镜像存在，连不上云厂商接口不影响其他服务）
